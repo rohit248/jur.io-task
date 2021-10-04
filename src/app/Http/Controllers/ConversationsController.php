@@ -130,14 +130,15 @@ class ConversationsController extends Controller
      $senderId = $request->input('senderId');
 
 
+     $message = new Messages;
+     $message->conversation_id = $conversation_id;
+     $message->sender_id = $senderId;
+     $message->content = $content;
+     $message->type = $type;
+     $message->save();
+
      if ($type == 'Text')
      {
-       $message = new Messages;
-       $message->conversation_id = $conversation_id;
-       $message->sender_id = $senderId;
-       $message->content = $content;
-       $message->type = $type;
-       $message->save();
 
        return response()->json(['status' => 1 , 'data' => ['message_id' => $message->id]], 200);
 
@@ -270,6 +271,83 @@ class ConversationsController extends Controller
       }
     }
 
+
+  }
+
+
+  public function conversationFetchID(Request $request, $conversation_id)
+  {
+
+      $conversation = Conversations::where('id',$conversation_id)->first();
+
+      if (!$conversation)
+      {
+        return response()->json(['status' => 0 , 'message' => 'Conversation is invalid.'], 404);
+      }
+
+      $lastMessage = Messages::where('conversation_id','=',$conversation_id)->orderBy('id','desc')->first();
+      $sender = Contacts::where('id','=',$lastMessage->sender_id)->first();
+
+      $participants = Participants::where('conversation_id','=',$conversation_id)->where('is_active','=',1)->get();
+
+      $participantsData = [];
+      foreach ($participants as $key => $participant)
+      {
+        $tmpData = [];
+        $tmpData['id'] = $participant->id;
+        $tmpData['name'] = $participant->contact->name;
+        $participantsData[] = $tmpData;
+      }
+
+      $messagesData = [];
+      $messages = Messages::where('conversation_id','=',$conversation_id)->orderBy('id','desc')->take(10)->get();
+      foreach ($messages as $message)
+      {
+        $tmpData = [];
+        $tmpData['id'] = $message->id;
+        $tmpData['createdAt'] = $message->created_at;
+        $tmpData['content'] = $message->content;
+        $tmpData['senderId'] = $message->sender_id;
+        $tmpData['type'] = $message->type;
+        $tmpData['senderName'] = $message->sender->name;
+        $messagesData[] = $tmpData;
+
+      }
+
+      $response = [
+        'title' => $conversation->title,
+        'senderName' => $sender->name,
+        'senderId' => $sender->id,
+        'participants' => $participantsData,
+        'messages' => $messagesData
+      ];
+
+
+      return response()->json(['status' => 1 , 'data' => $response], 200);
+  }
+
+
+
+
+  public function fetchMessage(Request $request, $conversation_id, $message_id)
+  {
+
+    $message = Messages::where('id',$message_id)->where('conversation_id','=',$conversation_id)->first();
+
+    if (!$message)
+    {
+      return response()->json(['status' => 0 , 'message' => 'Conversation or message is invalid.'], 404);
+    }
+
+    $response = [
+      'content' => $message->content,
+      'senderName' => $message->sender->name,
+      'senderId' => $message->sender_id,
+      'type'  => $message->type,
+      'createdAt' => $message->created_at
+    ];
+
+    return response()->json(['status' => 1 , 'data' => $response], 200);
 
   }
 
