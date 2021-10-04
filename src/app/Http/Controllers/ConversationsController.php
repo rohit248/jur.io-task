@@ -352,4 +352,41 @@ class ConversationsController extends Controller
   }
 
 
+  public function fetchAllMessages(Request $request, $conversation_id)
+  {
+      $validator = Validator::make($request->all(), [
+           'page' => 'nullable|integer',
+       ]);
+
+
+       if ($validator->fails()) {
+            return response()->json(['status' => 0 , 'message' => $validator->messages()->first()], 200);
+       }
+
+       $conversation = Conversations::where('id',$conversation_id)->first();
+
+       if (!$conversation)
+       {
+         return response()->json(['status' => 0 , 'message' => 'Conversation is invalid.'], 404);
+       }
+
+       $pageNumber = $request->input('page');
+
+       $perPage = 10;
+       $messages = Messages::paginate($perPage, ['*'], 'page', $pageNumber);
+
+       $messages->getCollection()->transform(function ($value) {
+
+           $value->senderName = $value->sender->name;
+           $value->senderId = $value->sender_id;
+           $value->createdAt = $value->created_at;
+           return $value;
+       });
+
+       $messages->makeHidden(['created_at','updated_at','id','created_at','sender_id','conversation_id','sender']);
+       return response()->json(['status' => 1 , 'data' => $messages], 200);
+
+  }
+
+
 }

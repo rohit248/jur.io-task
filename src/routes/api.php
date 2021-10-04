@@ -24,3 +24,4 @@ Route::post('/conversations', [ConversationsController::class, 'conversationCrea
 Route::post('/conversations/{conversation_id}/messages', [ConversationsController::class, 'addMessage']);
 Route::get('/conversations/{conversation_id}/messages/{message_id}', [ConversationsController::class, 'fetchMessage']);
 Route::get('/conversations/{conversation_id}', [ConversationsController::class, 'conversationFetchID']);
+Route::get('/conversations/{conversation_id}/messages', [ConversationsController::class, 'fetchAllMessages']);
