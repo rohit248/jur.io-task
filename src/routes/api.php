@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ContactsController;
+use App\Http\Controllers\ConversationsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,3 +17,5 @@ use App\Http\Controllers\ContactsController;
 */
 
 Route::get('/contacts', [ContactsController::class, 'contactsFetch']);
+
+Route::get('/conversations', [ConversationsController::class, 'conversationFetch']);
