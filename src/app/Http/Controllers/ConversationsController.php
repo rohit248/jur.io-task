@@ -54,6 +54,56 @@ class ConversationsController extends Controller
 
 
 
+  public function conversationCreate(Request $request)
+  {
+
+    $validator = Validator::make($request->all(), [
+         'title' => 'required|max:255',
+         'participants' => 'required|array',
+         'participants.*' => 'integer|exists:contacts,id'
+     ]);
+
+
+     if ($validator->fails()) {
+          return response()->json(['status' => 0 , 'message' => $validator->messages()->first()], 200);
+     }
+
+     $title = $request->input('title');
+     $participants = $request->input('participants');
+
+     try {
+          DB::beginTransaction();
+
+          $conversation = new conversations;
+
+          $conversation->title = $title;
+
+          $conversation->save();
+
+          foreach ($participants as $participant_input_id) {
+
+            $participant = new participants;
+            $participant->conversation_id = $conversation->id;
+            $participant->participant_id = $participant_input_id;
+            $participant->is_active = 1;
+
+            $participant->save();
+          }
+
+          DB::commit();
+          return response()->json(['status' => 1 , 'data' => ['conversation_id' => $conversation->id]], 200);
+
+      } catch (\PDOException $e) {
+
+          DB::rollBack();
+
+          return response()->json(['status' => 0 , 'message' => 'Unable to perform action . Please try again Later'], 200);
+      }
+
+
+  }
+
+
   
 
 

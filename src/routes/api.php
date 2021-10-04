@@ -19,3 +19,4 @@ use App\Http\Controllers\ConversationsController;
 Route::get('/contacts', [ContactsController::class, 'contactsFetch']);
 
 Route::get('/conversations', [ConversationsController::class, 'conversationFetch']);
+Route::post('/conversations', [ConversationsController::class, 'conversationCreate']);
