@@ -20,3 +20,5 @@ Route::get('/contacts', [ContactsController::class, 'contactsFetch']);
 
 Route::get('/conversations', [ConversationsController::class, 'conversationFetch']);
 Route::post('/conversations', [ConversationsController::class, 'conversationCreate']);
+
+Route::post('/conversations/{conversation_id}/messages', [ConversationsController::class, 'addMessage']);

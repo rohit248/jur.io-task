@@ -104,7 +104,174 @@ class ConversationsController extends Controller
   }
 
 
-  
+  public function addMessage(Request $request, $conversation_id)
+  {
+
+    $conversation = Conversations::where('id',$conversation_id)->exists();
+
+    if (!$conversation)
+    {
+      return response()->json(['status' => 0 , 'message' => 'Conversation is invalid.'], 404);
+    }
+
+    $validator = Validator::make($request->all(), [
+         'content' => 'required|max:255',
+         'type' => 'required|in:Meeting,Text',
+         'senderId' => 'required|integer|exists:participants,participant_id,conversation_id,'.$conversation_id
+     ]);
+
+
+     if ($validator->fails()) {
+          return response()->json(['status' => 0 , 'message' => $validator->messages()->first()], 200);
+     }
+
+     $content = $request->input('content');
+     $type = $request->input('type');
+     $senderId = $request->input('senderId');
+
+
+     if ($type == 'Text')
+     {
+       $message = new Messages;
+       $message->conversation_id = $conversation_id;
+       $message->sender_id = $senderId;
+       $message->content = $content;
+       $message->type = $type;
+       $message->save();
+
+       return response()->json(['status' => 1 , 'data' => ['message_id' => $message->id]], 200);
+
+     }
+     else {
+
+       if (substr( $content, 0, 8 ) == 'Schedule')
+       {
+
+         $dateSchedule = $this->getScheduleTime($content,"Schedule");
+
+         if (!$dateSchedule) {
+           return response()->json(['status' => 0 , 'message' => 'Error Processing Message.'], 200);
+         }
+
+         $zoomSchedule =  new ZoomMeeting;
+         $zoomSchedule->conversation_id = $conversation_id;
+         $zoomSchedule->schedule_timestamp = $dateSchedule;
+         $zoomSchedule->zoom_meeting_id = null;
+         $zoomSchedule->operation_type = 'Schedule';
+         $zoomSchedule->status = 0;
+
+         $zoomSchedule->save();
+
+         return response()->json(['status' => 1 , 'message' => 'SUCCESS'], 200);
+
+       }
+       elseif (substr( $content, 0, 10 ) == 'Reschedule') {
+
+         $dateSchedule = $this->getScheduleTime($content,"Reschedule");
+
+         if (!$dateSchedule) {
+           return response()->json(['status' => 0 , 'message' => 'Error Processing Message.'], 200);
+         }
+
+         $oldSchedule = ZoomMeeting::where('conversation_id','=',$conversation_id)->where('schedule_timestamp','=',$dateSchedule['old'])->where('status','=',1)->first();
+
+         if (!$oldSchedule)
+         {
+           return response()->json(['status' => 0 , 'message' => 'No Zoom meeting found'], 200);
+         }
+
+         $zoomSchedule =  new ZoomMeeting;
+         $zoomSchedule->conversation_id = $conversation_id;
+         $zoomSchedule->schedule_timestamp = $dateSchedule['new'];
+         $zoomSchedule->zoom_meeting_id = $oldSchedule->zoom_meeting_id;
+         $zoomSchedule->operation_type = 'Reschedule';
+         $zoomSchedule->status = 0;
+
+         $zoomSchedule->save();
+
+         return response()->json(['status' => 1 , 'message' => 'SUCCESS'], 200);
+
+
+       }
+       elseif (substr( $content, 0, 6 ) == 'Cancel') {
+
+         $dateSchedule = $this->getScheduleTime($content,"Cancel");
+
+         if (!$dateSchedule) {
+           return response()->json(['status' => 0 , 'message' => 'Error Processing Message.'], 200);
+         }
+
+         $oldSchedule = ZoomMeeting::where('conversation_id','=',$conversation_id)->where('schedule_timestamp','=',$dateSchedule)->where('status','=',1)->first();
+
+         if (!$oldSchedule)
+         {
+           return response()->json(['status' => 0 , 'message' => 'No Zoom meeting found'], 200);
+         }
+
+         $zoomSchedule =  new ZoomMeeting;
+         $zoomSchedule->conversation_id = $conversation_id;
+         $zoomSchedule->schedule_timestamp = $dateSchedule;
+         $zoomSchedule->zoom_meeting_id = $oldSchedule->zoom_meeting_id;
+         $zoomSchedule->operation_type = 'Cancel';
+         $zoomSchedule->status = 0;
+
+         $zoomSchedule->save();
+
+         return response()->json(['status' => 1 , 'message' => 'SUCCESS'], 200);
+
+
+       }
+       else {
+         return response()->json(['status' => 0 , 'message' => 'Error Processing Message.'], 200);
+       }
+
+
+
+     }
+
+
+  }
+
+
+  private function getScheduleTime($msgString, $type)
+  {
+
+    if ($type == 'Schedule') {
+      try {
+        $ScheduleTime = explode("for ",$msgString)[1];
+        $scheduleDateTimeStamp = Carbon::createFromFormat('H:m d/m/Y', $ScheduleTime)->timestamp;
+        return $scheduleDateTimeStamp;
+
+      } catch (\Exception $e) {
+        // return response()->json(['status' => 0 , 'message' => 'Error Processing Message.'], 200);
+        return false;
+      }
+    }
+    elseif ($type == 'Reschedule') {
+      try {
+        $ScheduleTime = explode(" to ",explode("Reschedule ",$msgString)[1]);
+        $scheduleDateTimeStamp['old'] = Carbon::createFromFormat('H:m d/m/Y', $ScheduleTime[0])->timestamp;
+        $scheduleDateTimeStamp['new'] = Carbon::createFromFormat('H:m d/m/Y', $ScheduleTime[1])->timestamp;
+        return $scheduleDateTimeStamp;
+
+      } catch (\Exception $e) {
+        return false;
+      }
+    }
+    elseif ($type == 'Cancel') {
+      try {
+        $ScheduleTime = explode("Cancel ",$msgString)[1];
+        $scheduleDateTimeStamp = Carbon::createFromFormat('H:m d/m/Y', $ScheduleTime)->timestamp;
+        return $scheduleDateTimeStamp;
+
+      } catch (\Exception $e) {
+        // return response()->json(['status' => 0 , 'message' => 'Error Processing Message.'], 200);
+        return false;
+      }
+    }
+
+
+  }
 
 
 }
